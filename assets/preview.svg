@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720" role="img" aria-label="dsh-cost-pill 界面示意：输入框下方的费用 pill 与点击后的明细面板">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14161d"/>
+      <stop offset="0.55" stop-color="#101218"/>
+      <stop offset="1" stop-color="#0c0e13"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.35" r="0.6">
+      <stop offset="0" stop-color="#4d6bfe" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#4d6bfe" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="panelShadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="18" stdDeviation="26" flood-color="#000000" flood-opacity="0.55"/>
+    </filter>
+    <style>
+      .sans { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif; }
+      .mono { font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
+      .label { fill: #8b93a7; font-size: 14px; }
+      .value { fill: #cfd5e4; font-size: 14px; font-variant-numeric: tabular-nums; }
+      .note { fill: #6f7789; font-size: 12px; }
+      .title { fill: #e8ebf3; font-size: 16px; font-weight: 600; }
+      .total { fill: #e8ebf3; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+      .placeholder { fill: #6f7789; font-size: 17px; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="720" fill="url(#bg)"/>
+  <rect width="1200" height="720" fill="url(#glow)"/>
+
+  <!-- composer card -->
+  <rect x="150" y="452" width="900" height="176" rx="20" fill="#1b1e25" stroke="#2a2f3a" stroke-width="1.5"/>
+  <text class="sans placeholder" x="192" y="510">把这段代码重构一下，顺便补上测试…</text>
+  <text class="sans note" x="192" y="536" fill="#565e70">Shift + Enter 换行</text>
+
+  <!-- toolbar row inside the card -->
+  <circle cx="196" cy="586" r="12" fill="none" stroke="#3a4050" stroke-width="1.5"/>
+  <path d="M196 580v12M190 586h12" stroke="#8b93a7" stroke-width="1.6" stroke-linecap="round"/>
+  <rect x="222" y="574" width="150" height="24" rx="7" fill="#232833"/>
+  <text class="sans" x="236" y="591" fill="#aeb6c8" font-size="12.5">deepseek-flash</text>
+
+  <!-- send button -->
+  <circle cx="1002" cy="586" r="20" fill="#4d6bfe"/>
+  <path d="M1002 595v-17M994 586l8-8 8 8" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- dock row under the composer card -->
+  <g class="sans">
+    <!-- activity pill -->
+    <circle cx="192" cy="666" r="7" fill="none" stroke="#6f7789" stroke-width="1.4"/>
+    <path d="M189 666h6M192 663v6" stroke="#6f7789" stroke-width="1.3" stroke-linecap="round"/>
+    <text x="208" y="671" fill="#8b93a7" font-size="13">12 轮 26 步</text>
+
+    <!-- usage pill -->
+    <ellipse cx="352" cy="666" rx="7" ry="6" fill="none" stroke="#6f7789" stroke-width="1.4"/>
+    <text x="368" y="671" fill="#8b93a7" font-size="13">缓存命中 92%</text>
+
+    <!-- cost pill: the contribution, highlighted -->
+    <rect x="520" y="648" width="118" height="36" rx="9" fill="#242c4c" stroke="#3d4f92" stroke-width="1.2"/>
+    <path d="M542 661l-4 6h4v4h6v-4h4z" fill="none" stroke="#a8b8ff" stroke-width="1.3" stroke-linejoin="round"/>
+    <text x="558" y="671" fill="#c3ceff" font-size="13.5" font-weight="600">≈ ¥1.05</text>
+
+    <!-- context pill -->
+    <path d="M738 661a9 9 0 0 1 18 0" fill="none" stroke="#6f7789" stroke-width="1.4"/>
+    <text x="768" y="671" fill="#8b93a7" font-size="13">上下文 38%</text>
+  </g>
+
+  <!-- details dialog -->
+  <g filter="url(#panelShadow)">
+    <rect x="600" y="106" width="470" height="352" rx="18" fill="#1f232c" stroke="#313748" stroke-width="1.2"/>
+  </g>
+
+  <!-- dialog title -->
+  <text class="sans title" x="632" y="150">会话费用</text>
+  <text class="sans total" x="1038" y="150" text-anchor="end">¥1.0496</text>
+  <line x1="632" y1="170" x2="1038" y2="170" stroke="#313748" stroke-width="1"/>
+
+  <!-- dialog rows -->
+  <g class="sans">
+    <text class="label" x="632" y="202">deepseek-account / deepseek-flash</text>
+    <text class="value" x="1038" y="202" text-anchor="end">¥1.0496</text>
+
+    <text class="label" x="632" y="232">未缓存输入</text>
+    <text class="value" x="1038" y="232" text-anchor="end">163,366 tokens · ¥0.1634</text>
+
+    <text class="label" x="632" y="262">缓存命中输入</text>
+    <text class="value" x="1038" y="262" text-anchor="end">20,767,616 tokens · ¥0.4154</text>
+
+    <text class="label" x="632" y="292">输出</text>
+    <text class="value" x="1038" y="292" text-anchor="end">117,709 tokens · ¥0.4708</text>
+
+    <text class="label" x="632" y="322">空闲时段</text>
+    <text class="value" x="1038" y="322" text-anchor="end">¥1.0496</text>
+  </g>
+
+  <line x1="632" y1="344" x2="1038" y2="344" stroke="#313748" stroke-width="1"/>
+
+  <text class="sans note" x="632" y="372">价格来自 DeepSeek 开放平台官方价目（元/百万 tokens），</text>
+  <text class="sans note" x="632" y="392">按每次请求发生时段计价；高峰为北京时间工作日</text>
+  <text class="sans note" x="632" y="412">9:00–12:00、14:00–18:00，节假日按空闲价。</text>
+
+</svg>

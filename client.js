@@ -27,7 +27,6 @@ window.__ModuleLoader__.load({
       'cost.pill.label': '≈ {amount}',
       'cost.pill.aria': '本次会话费用 {amount}，点击查看明细',
       'cost.dialog.title': '会话费用',
-      'cost.row.model': '模型',
       'cost.row.input': '未缓存输入',
       'cost.row.cacheRead': '缓存命中输入',
       'cost.row.cacheWrite': '缓存写入',
@@ -36,7 +35,7 @@ window.__ModuleLoader__.load({
       'cost.row.offPeak': '空闲时段',
       'cost.detail.value': '{tokens} tokens · {cost}',
       'cost.note.pricing': '价格来自 DeepSeek 开放平台官方价目（元/百万 tokens），按每次请求发生时段计价。',
-      'cost.note.peak': '高峰时段：北京时间工作日 9:00–12:00、14:00–18:00；空闲时段价格为高峰价的一半。',
+      'cost.note.peak': '高峰时段：北京时间工作日 9:00–12:00、14:00–18:00，法定节假日按空闲价；空闲价为高峰价的一半。',
       'cost.note.fallback': '部分模型无内置价格，按 deepseek-flash 价格估算。',
     };
 
@@ -44,7 +43,6 @@ window.__ModuleLoader__.load({
       'cost.pill.label': '≈ {amount}',
       'cost.pill.aria': 'Estimated session cost {amount}; click for details',
       'cost.dialog.title': 'Session cost',
-      'cost.row.model': 'Model',
       'cost.row.input': 'Uncached input',
       'cost.row.cacheRead': 'Cache-hit input',
       'cost.row.cacheWrite': 'Cache write',
@@ -53,7 +51,7 @@ window.__ModuleLoader__.load({
       'cost.row.offPeak': 'Off-peak period',
       'cost.detail.value': '{tokens} tokens · {cost}',
       'cost.note.pricing': 'Prices follow the official DeepSeek list (CNY per 1M tokens), billed at the period of each request.',
-      'cost.note.peak': 'Peak: Beijing time, weekdays 09:00–12:00 and 14:00–18:00; off-peak bills at half the peak rate.',
+      'cost.note.peak': 'Peak: Beijing time, weekdays 09:00–12:00 and 14:00–18:00, excluding public holidays; off-peak bills at half the peak rate.',
       'cost.note.fallback': 'Models without a built-in price are estimated at the deepseek-flash price.',
     };
 
@@ -141,10 +139,15 @@ window.__ModuleLoader__.load({
 
     function dialogBody(cost, t) {
       const rows = [];
-      const models = cost.models
-        .map((entry) => entry.provider + '/' + entry.model)
-        .join('、');
-      rows.push(detailRow(t('cost.row.model'), models, 'model'));
+      for (const entry of cost.models) {
+        rows.push(
+          detailRow(
+            entry.provider + ' / ' + entry.model,
+            '¥' + formatCny(entry.cny, 4),
+            'model-' + entry.provider + '-' + entry.model,
+          ),
+        );
+      }
       if (cost.tokens.uncachedInputTokens > 0) {
         rows.push(
           detailRow(

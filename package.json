@@ -1,7 +1,7 @@
 {
   "name": "dsh-cost-pill",
-  "version": "0.1.0",
-  "description": "DeepSeek Harness session cost pill: official CNY prices with peak/off-peak billing in the composer dock, click for the token breakdown.",
+  "version": "0.2.0",
+  "description": "DeepSeek Harness session cost pill: official CNY prices with peak/off-peak and the 2026 holiday calendar, in the composer dock; click for the token breakdown.",
   "license": "MIT",
   "author": "debug-null",
   "type": "module",
@@ -30,23 +30,32 @@
   "publishConfig": {
     "access": "public"
   },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check index.js && node --check client.js && node --check lib/cost.js && node --test"
+  },
   "exports": {
     ".": "./index.js",
     "./client": "./client.js",
+    "./lib/cost": "./lib/cost.js",
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
   "files": [
     "index.js",
     "client.js",
+    "lib",
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
+    "assets",
     "README.md",
     "LICENSE"
   ],
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "immediately": true,
