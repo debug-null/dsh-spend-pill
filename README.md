@@ -1,5 +1,10 @@
 # dsh-spend-pill
 
+[![Release](https://img.shields.io/github/v/release/debug-null/dsh-spend-pill?label=release)](https://github.com/debug-null/dsh-spend-pill/releases/latest)
+[![CI](https://github.com/debug-null/dsh-spend-pill/actions/workflows/ci.yml/badge.svg)](https://github.com/debug-null/dsh-spend-pill/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/debug-null/dsh-spend-pill)](LICENSE)
+[![dsh-plugin](https://img.shields.io/badge/topic-dsh--plugin-4D6BFE)](https://github.com/topics/dsh-plugin)
+
 DeepSeek Harness（DSH）Web 插件：在输入框下方显示**本次会话已花费的人民币金额**，点击查看明细。
 
 ![界面示意](assets/preview.svg)
