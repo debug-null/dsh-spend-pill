@@ -136,3 +136,7 @@ node --test
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+## 相关链接
+
+- 掘金文章：[给 DeepSeek Harness 写费用插件：把「这次会话花了多少钱」算准](https://juejin.cn/spost/7697150457639108662)
