@@ -24,14 +24,14 @@ English | [中文说明](#中文说明)
 
 ## Install
 
-From the Web GUI: **Settings → Plugins → install** `dsh-cost-pill`, or use the plugin manager's
-"add bundle" with the package directory.
-
-From the CLI, into a profile:
+The bundle ships as a prebuilt tarball on the GitHub Release (not on npm yet):
 
 ```sh
-dsh plugin --profile desktop add dsh-cost-pill
+dsh plugin --profile desktop add \
+  https://github.com/debug-null/dsh-cost-pill/releases/latest/download/dsh-cost-pill.tgz
 ```
+
+In the Web GUI you can use **Settings → Plugins → install bundle** and paste the same URL.
 
 The bundle declares a host row (`tokenCost` session projection) and a browser half (the pill), so
 both are loaded by the normal profile composition. Reload the Web GUI page after installing.
@@ -92,13 +92,14 @@ MIT — see [LICENSE](LICENSE).
 
 ### 安装
 
-Web 界面：**设置 → 插件 → 安装** `dsh-cost-pill`；或命令行：
+目前尚未发布到 npm，直接安装 GitHub Release 里的预构建包：
 
 ```sh
-dsh plugin --profile desktop add dsh-cost-pill
+dsh plugin --profile desktop add \
+  https://github.com/debug-null/dsh-cost-pill/releases/latest/download/dsh-cost-pill.tgz
 ```
 
-安装后刷新 Web 页面即可。
+Web 界面也可以在 **设置 → 插件 → 安装 bundle** 里粘贴同一个 URL。安装后刷新 Web 页面即可。
 
 ### 价格
 
