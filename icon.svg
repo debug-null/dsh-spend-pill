@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Cost coin">
+  <defs>
+    <linearGradient id="coin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b8cff"/>
+      <stop offset="1" stop-color="#2f52d0"/>
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="27" fill="url(#coin)"/>
+  <circle cx="32" cy="32" r="27" fill="none" stroke="#1f3aa8" stroke-opacity=".45" stroke-width="2"/>
+  <circle cx="32" cy="32" r="21" fill="none" stroke="#ffffff" stroke-opacity=".55" stroke-width="2"/>
+  <path d="M21.5 21.5 32 33l10.5-11.5" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M32 33v13.5" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M25 34.5h14M25 41h14" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

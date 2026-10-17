@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Cost pill",
+    "description": "Shows the session cost in CNY beside the token-usage pills under the composer; click for the token and peak/off-peak breakdown."
+  }
+}

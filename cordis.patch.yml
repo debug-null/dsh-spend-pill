@@ -1,0 +1,7 @@
+# Bundle patch layer: one host row loads this package's main entry (the
+# `tokenCost` session projection); the `dsh.client` declaration in package.json
+# makes the web app load ./client.js as the browser half, which registers the
+# cost pill under the composer.
+- insert:
+    - id: cost-pill
+      name: 'dsh-cost-pill'
