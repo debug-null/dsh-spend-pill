@@ -23,6 +23,6 @@ export function apply(ctx, config) {
   const projection = createProjection(config);
   ctx.effect(
     () => ctx.sessionProjections.register(projection),
-    'dsh-cost-pill: token cost projection',
+    'dsh-spend-pill: token cost projection',
   );
 }

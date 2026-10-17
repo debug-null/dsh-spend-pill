@@ -1,4 +1,4 @@
-# dsh-cost-pill
+# dsh-spend-pill
 
 DeepSeek Harness（DSH）Web 插件：在输入框下方显示**本次会话已花费的人民币金额**，点击查看明细。
 
@@ -23,7 +23,7 @@ DeepSeek Harness（DSH）Web 插件：在输入框下方显示**本次会话已�
 
 ```sh
 dsh plugin --profile desktop add \
-  https://github.com/debug-null/dsh-cost-pill/releases/latest/download/dsh-cost-pill.tgz
+  https://github.com/debug-null/dsh-spend-pill/releases/latest/download/dsh-spend-pill.tgz
 ```
 
 Web 界面也可以在 **设置 → 插件 → 安装 bundle** 里粘贴同一个 URL。安装后刷新 Web 页面即可。
@@ -55,7 +55,7 @@ Web 界面也可以在 **设置 → 插件 → 安装 bundle** 里粘贴同一�
 
 ```yaml
 - id: cost-pill
-  name: dsh-cost-pill
+  name: dsh-spend-pill
   config:
     prices:
       my-model:
@@ -106,7 +106,7 @@ CNY, in the composer dock row — and opens a click-through breakdown dialog.
 
 ```sh
 dsh plugin --profile desktop add \
-  https://github.com/debug-null/dsh-cost-pill/releases/latest/download/dsh-cost-pill.tgz
+  https://github.com/debug-null/dsh-spend-pill/releases/latest/download/dsh-spend-pill.tgz
 ```
 
 ### Pricing

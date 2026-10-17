@@ -4,4 +4,4 @@
 # cost pill under the composer.
 - insert:
     - id: cost-pill
-      name: 'dsh-cost-pill'
+      name: 'dsh-spend-pill'

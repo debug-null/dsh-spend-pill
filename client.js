@@ -11,14 +11,14 @@
  * model and period it ran in. The client does not fold events itself.
  */
 window.__ModuleLoader__.load({
-  id: 'dsh-cost-pill',
+  id: 'dsh-spend-pill',
   factory(require) {
     const React = require('react');
     const ReactDOM = require('react-dom');
     const h = React.createElement;
 
     const NS = 'cost-pill';
-    const STYLE_TAG_ID = '@local/dsh-cost-pill/CostPill.css';
+    const STYLE_TAG_ID = 'dsh-spend-pill/CostPill.css';
     const PANEL_MARGIN = 12;
     const PANEL_GAP = 8;
     const MEASURE_STYLE = { visibility: 'hidden', left: 0, top: 0 };
@@ -334,16 +334,16 @@ window.__ModuleLoader__.load({
             return () => {};
           }
           const tag = document.createElement('style');
-          tag.dataset.plugin = 'dsh-cost-pill';
+          tag.dataset.plugin = 'dsh-spend-pill';
           tag.dataset.pluginCss = STYLE_TAG_ID;
           tag.textContent = CSS;
           document.head.appendChild(tag);
           return () => {
             tag.remove();
           };
-        }, 'dsh-cost-pill: styles');
+        }, 'dsh-spend-pill: styles');
 
-        ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-cost-pill: dictionaries');
+        ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-spend-pill: dictionaries');
 
         ctx.slots.inject('conversation.composer.dock', () =>
           ctx.slots.register(
