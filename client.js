@@ -36,7 +36,7 @@ window.__ModuleLoader__.load({
       'cost.detail.value': '{tokens} tokens · {cost}',
       'cost.note.pricing': '价格来自 DeepSeek 开放平台官方价目（元/百万 tokens），按每次请求发生时段计价。',
       'cost.note.peak': '高峰时段：北京时间工作日 9:00–12:00、14:00–18:00，法定节假日按空闲价；空闲价为高峰价的一半。',
-      'cost.note.fallback': '部分模型无内置价格，按 deepseek-flash 价格估算。',
+      'cost.note.fallback': '部分模型无内置价格，按 {model} 价格估算。',
     };
 
     const en = {
@@ -52,7 +52,7 @@ window.__ModuleLoader__.load({
       'cost.detail.value': '{tokens} tokens · {cost}',
       'cost.note.pricing': 'Prices follow the official DeepSeek list (CNY per 1M tokens), billed at the period of each request.',
       'cost.note.peak': 'Peak: Beijing time, weekdays 09:00–12:00 and 14:00–18:00, excluding public holidays; off-peak bills at half the peak rate.',
-      'cost.note.fallback': 'Models without a built-in price are estimated at the deepseek-flash price.',
+      'cost.note.fallback': 'Models without a built-in price are estimated at the {model} price.',
     };
 
     const CSS = [
@@ -89,9 +89,13 @@ window.__ModuleLoader__.load({
     ].join('');
 
     function formatCny(value, forceDigits) {
+      if (typeof value !== 'number' || !Number.isFinite(value)) return '0.0000';
       const abs = Math.abs(value);
-      const digits =
+      let digits =
         forceDigits !== undefined ? forceDigits : abs >= 1 ? 2 : abs >= 0.01 ? 3 : 4;
+      // The fold keeps six decimal places. Four digits render a real
+      // cache-hit total such as ¥0.00004 as 0.0000.
+      while (digits < 6 && abs > 0 && Number(abs.toFixed(digits)) === 0) digits += 1;
       return value.toLocaleString(undefined, {
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
@@ -99,7 +103,45 @@ window.__ModuleLoader__.load({
     }
 
     function formatTokens(value) {
-      return Math.round(value).toLocaleString();
+      const numeric = typeof value === 'number' && Number.isFinite(value) ? value : 0;
+      return Math.round(numeric).toLocaleString();
+    }
+
+    function placePanel(trigger, box, viewport) {
+      const maxLeft = Math.max(PANEL_MARGIN, viewport.width - box.width - PANEL_MARGIN);
+      const left = Math.min(
+        Math.max(PANEL_MARGIN, trigger.left + trigger.width / 2 - box.width / 2),
+        maxLeft,
+      );
+      let top = trigger.top - box.height - PANEL_GAP;
+      if (top < PANEL_MARGIN) {
+        top = Math.min(
+          trigger.bottom + PANEL_GAP,
+          Math.max(PANEL_MARGIN, viewport.height - box.height - PANEL_MARGIN),
+        );
+      }
+      return { left, top };
+    }
+
+    function tokenSum(tokens) {
+      if (tokens === null || typeof tokens !== 'object') return 0;
+      let total = 0;
+      for (const key of [
+        'uncachedInputTokens',
+        'cacheReadTokens',
+        'cacheWriteTokens',
+        'outputTokens',
+      ]) {
+        const value = tokens[key];
+        if (typeof value === 'number' && Number.isFinite(value) && value > 0) total += value;
+      }
+      return total;
+    }
+
+    function costAmount(costs, key) {
+      if (costs === null || typeof costs !== 'object') return 0;
+      const value = costs[key];
+      return typeof value === 'number' && Number.isFinite(value) ? value : 0;
     }
 
     function coinIcon() {
@@ -139,7 +181,8 @@ window.__ModuleLoader__.load({
 
     function dialogBody(cost, t) {
       const rows = [];
-      for (const entry of cost.models) {
+      const models = Array.isArray(cost.models) ? cost.models : [];
+      for (const entry of models) {
         rows.push(
           detailRow(
             entry.provider + ' / ' + entry.model,
@@ -148,38 +191,39 @@ window.__ModuleLoader__.load({
           ),
         );
       }
-      if (cost.tokens.uncachedInputTokens > 0) {
+      const tokens = cost.tokens !== null && typeof cost.tokens === 'object' ? cost.tokens : {};
+      if (tokens.uncachedInputTokens > 0) {
         rows.push(
           detailRow(
             t('cost.row.input'),
-            tokenDetail(t, cost.tokens.uncachedInputTokens, cost.costs.inputCny),
+            tokenDetail(t, tokens.uncachedInputTokens, costAmount(cost.costs, 'inputCny')),
             'input',
           ),
         );
       }
-      if (cost.tokens.cacheReadTokens > 0) {
+      if (tokens.cacheReadTokens > 0) {
         rows.push(
           detailRow(
             t('cost.row.cacheRead'),
-            tokenDetail(t, cost.tokens.cacheReadTokens, cost.costs.cacheReadCny),
+            tokenDetail(t, tokens.cacheReadTokens, costAmount(cost.costs, 'cacheReadCny')),
             'cache-read',
           ),
         );
       }
-      if (cost.tokens.cacheWriteTokens > 0) {
+      if (tokens.cacheWriteTokens > 0) {
         rows.push(
           detailRow(
             t('cost.row.cacheWrite'),
-            tokenDetail(t, cost.tokens.cacheWriteTokens, cost.costs.cacheWriteCny),
+            tokenDetail(t, tokens.cacheWriteTokens, costAmount(cost.costs, 'cacheWriteCny')),
             'cache-write',
           ),
         );
       }
-      if (cost.tokens.outputTokens > 0) {
+      if (tokens.outputTokens > 0) {
         rows.push(
           detailRow(
             t('cost.row.output'),
-            tokenDetail(t, cost.tokens.outputTokens, cost.costs.outputCny),
+            tokenDetail(t, tokens.outputTokens, costAmount(cost.costs, 'outputCny')),
             'output',
           ),
         );
@@ -205,34 +249,49 @@ window.__ModuleLoader__.load({
       const rootRef = React.useRef(null);
       const panelRef = React.useRef(null);
       const [pos, setPos] = React.useState(null);
+      const totalTokens = tokenSum(cost === undefined || cost === null ? undefined : cost.tokens);
+      const visible =
+        cost !== undefined &&
+        cost !== null &&
+        typeof cost.cny === 'number' &&
+        Number.isFinite(cost.cny) &&
+        (cost.cny > 0 || totalTokens > 0);
+      const layoutKey = visible
+        ? [
+            cost.cny,
+            cost.peakCny,
+            cost.offPeakCny,
+            Array.isArray(cost.models) ? cost.models.length : 0,
+            totalTokens,
+            cost.fallback ? 1 : 0,
+          ].join('|')
+        : '';
 
       React.useLayoutEffect(() => {
         if (!open) {
           setPos(null);
-          return;
+          return undefined;
         }
-        const anchor = rootRef.current;
-        const panel = panelRef.current;
-        if (anchor === null || panel === null) return;
-        const trigger = anchor.getBoundingClientRect();
-        const box = panel.getBoundingClientRect();
-        const maxLeft = Math.max(
-          PANEL_MARGIN,
-          window.innerWidth - box.width - PANEL_MARGIN,
-        );
-        const left = Math.min(
-          Math.max(PANEL_MARGIN, trigger.left + trigger.width / 2 - box.width / 2),
-          maxLeft,
-        );
-        let top = trigger.top - box.height - PANEL_GAP;
-        if (top < PANEL_MARGIN) {
-          top = Math.min(
-            trigger.bottom + PANEL_GAP,
-            Math.max(PANEL_MARGIN, window.innerHeight - box.height - PANEL_MARGIN),
+        const place = () => {
+          const anchor = rootRef.current;
+          const panel = panelRef.current;
+          if (anchor === null || panel === null) return;
+          const next = placePanel(anchor.getBoundingClientRect(), panel.getBoundingClientRect(), {
+            width: window.innerWidth,
+            height: window.innerHeight,
+          });
+          setPos((prev) =>
+            prev !== null && prev.left === next.left && prev.top === next.top ? prev : next,
           );
-        }
-        setPos({ left, top });
-      }, [open]);
+        };
+        place();
+        window.addEventListener('resize', place);
+        window.addEventListener('scroll', place, true);
+        return () => {
+          window.removeEventListener('resize', place);
+          window.removeEventListener('scroll', place, true);
+        };
+      }, [open, layoutKey]);
 
       React.useEffect(() => {
         if (!open) return undefined;
@@ -255,16 +314,7 @@ window.__ModuleLoader__.load({
         };
       }, [open]);
 
-      const totalTokens =
-        cost === undefined
-          ? 0
-          : cost.tokens.uncachedInputTokens +
-            cost.tokens.cacheReadTokens +
-            cost.tokens.cacheWriteTokens +
-            cost.tokens.outputTokens;
-      if (cost === undefined || cost === null || (cost.cny <= 0 && totalTokens === 0)) {
-        return null;
-      }
+      if (!visible) return null;
 
       const amount = '¥' + formatCny(cost.cny);
       return h(
@@ -316,7 +366,16 @@ window.__ModuleLoader__.load({
                 h('div', { className: 'dshcost_note' }, t('cost.note.pricing')),
                 h('div', { className: 'dshcost_note' }, t('cost.note.peak')),
                 cost.fallback
-                  ? h('div', { className: 'dshcost_note' }, t('cost.note.fallback'))
+                  ? h(
+                      'div',
+                      { className: 'dshcost_note' },
+                      t('cost.note.fallback', {
+                        model:
+                          typeof cost.fallbackModel === 'string' && cost.fallbackModel !== ''
+                            ? cost.fallbackModel
+                            : 'deepseek-flash',
+                      }),
+                    )
                   : null,
               ),
               document.body,

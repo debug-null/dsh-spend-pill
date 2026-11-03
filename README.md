@@ -17,8 +17,12 @@ DeepSeek Harness（DSH）Web 插件：在输入框下方显示**本次会话已�
   「缓存命中 / Token 用量」旁边。
 - **点击**弹出明细：模型及其费用、未缓存输入 / 缓存命中输入 / 缓存写入 / 输出的 token 数与金额、
   高峰时段小计、空闲时段小计和合计；按 Esc 或点击弹层外部关闭。
-- 按**每次请求结算时的模型和时段**计价：会话中途切换模型、或一轮跨越 12:00 / 14:00 / 18:00
-  的峰谷边界，都能正确累加；时段以请求发出时间判定。
+- 按**每次请求的模型和发出时段**计价。发出时刻优先用这次请求的 `request/header` 或
+  `llm/retry-started`（紧挨着真正发出）；同系列后面的步骤不再重写 header 时，用该次响应流的
+  起始时间戳，没有流再用 `step/start`。一轮生成跨过 12:00 / 14:00 / 18:00 时，不会按结算时刻
+  把高峰请求算成空闲。同一 Turn/Step 的后一次结算仍沿用这一次的发出时刻。
+- 上下文压缩的 `compaction/summary` 若带了 provider 用量，按该次摘要自己的模型另计，不并进
+  同一 Turn/Step 的替换。
 - **内置 2026 年法定节假日**：节假日（以及周末）按空闲价计费，不再是简单的「工作日」判断。
 - 不联网、不保存任何数据，金额由会话自身的 provider 上报 token 用量推导。
 
@@ -52,7 +56,8 @@ Web 界面也可以在 **设置 → 插件 → 安装 bundle** 里粘贴同一�
 `deepseek-v4-flash-vision-exp` 按 `deepseek-flash` 计价。
 
 模型没有内置价格时（第三方 provider、未来新模型），按 `fallbackModel`（默认 `deepseek-flash`）
-估算，并在弹层里标注「按 deepseek-flash 价格估算」。
+估算，并在弹层里标注按该回退模型估算（默认 `deepseek-flash`）。别名会沿着链条解析，
+所以指向 `deepseek-v4-flash` 的旧 id 仍按 Flash 计价，而不是掉进回退模型。
 
 ## 可选配置
 
@@ -79,6 +84,10 @@ Web 界面也可以在 **设置 → 插件 → 安装 bundle** 里粘贴同一�
 ## 说明
 
 - 金额是按 provider 上报用量估算的参考值，不是账单；账户余额不在本插件范围内。
+- 缓存写入按 0 元计。官方价目没有这一档，Anthropic 兼容接口的 `cache_creation_input_tokens`
+  也恒为 0。
+- 调休补班的周末仍按空闲价。官方高峰是「周一至周五（不含法定节假日）」的两个窗口，不是国务院
+  调休之后的工作日。
 - 一段会话里切换过模型时，弹层会分模型列出各自费用，但 token 明细仍按桶汇总。
 - 会话还没有产生计费用量时，pill 不显示。
 
@@ -101,8 +110,12 @@ A DeepSeek Harness (DSH) Web GUI plugin that shows what the current session has 
 CNY, in the composer dock row — and opens a click-through breakdown dialog.
 
 - Prices every settled assistant attempt with the **official DeepSeek CNY list price for the model
-  and the period that attempt ran in** (peak / off-peak, request-time based), including the 2026
-  Chinese public-holiday calendar.
+  and the period that attempt was dispatched in** (peak / off-peak). The clock is the attempt's
+  `request/header` or `llm/retry-started` when one was logged, otherwise the first timestamp in
+  that attempt's stream (later steps reuse the header and do not write another), then `step/start`,
+  and only then the settlement time. The 2026 public-holiday calendar is built in. A
+  `compaction/summary` that carries provider usage is added on its own model and is not folded into
+  the surrounding turn/step.
 - Click the pill for model, uncached input / cache-hit input / cache-write / output tokens with
   amounts, peak and off-peak subtotals, and the total. Escape or an outside click closes it.
 - No network requests; figures come from the session's own provider-reported token usage.
@@ -122,7 +135,11 @@ peak ¥0.04 cache-hit / ¥2 cache-miss / ¥8 output, off-peak half; `deepseek-v4
 ¥27, off-peak half. Peak is Beijing time, weekdays 09:00–12:00 and 14:00–18:00, excluding the
 built-in 2026 public holidays; everything else bills off-peak.
 
-Models without a built-in price are estimated at the `fallbackModel` price and the dialog says so.
+Models without a built-in price are estimated at the `fallbackModel` price and the dialog names
+that model. Alias chains are resolved, so an alias of `deepseek-v4-flash` still bills as Flash.
+Cache-write tokens are ¥0 (DeepSeek publishes no write rate). Weekend makeup workdays stay
+off-peak: the official window is Monday–Friday, excluding public holidays, not the statutory
+workday calendar.
 Prices, aliases, the fallback model and the holiday list can be overridden through the plugin
 `config` in `cordis.patch.yml`.
 
