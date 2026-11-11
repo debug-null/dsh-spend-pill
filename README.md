@@ -15,14 +15,15 @@ DeepSeek Harness（DSH）Web 插件：在输入框下方显示**本次会话已�
 
 - 在输入框下方的 composer dock 里增加一个费用 pill：`≈ ¥1.05`，就在系统自带的「轮次/步数」
   「缓存命中 / Token 用量」旁边。
-- **点击**弹出明细：模型及其费用、未缓存输入 / 缓存命中输入 / 缓存写入 / 输出的 token 数与金额、
-  高峰时段小计、空闲时段小计和合计；按 Esc 或点击弹层外部关闭。
-- 按**每次请求的模型和发出时段**计价。发出时刻优先用这次请求的 `request/header` 或
-  `llm/retry-started`（紧挨着真正发出）；同系列后面的步骤不再重写 header 时，用该次响应流的
-  起始时间戳，没有流再用 `step/start`。一轮生成跨过 12:00 / 14:00 / 18:00 时，不会按结算时刻
-  把高峰请求算成空闲。同一 Turn/Step 的后一次结算仍沿用这一次的发出时刻。
+- **点击**弹出明细：每个模型单独一块，块内再按高峰 / 空闲列出未缓存输入、缓存命中输入、
+  缓存写入、输出的 token 数与金额。估算价会标在对应模型上。按 Esc 或点击弹层外部关闭。
+- 按**每次请求的模型和发出时段**计价。发出时刻优先用这次请求自己的 `request/header` 或
+  `llm/retry-started`（紧挨着真正发出）；这条时钟只属于它对应的那一次请求，还没结算的
+  header 或重试不会套到后面的 step。同系列后面的步骤不再重写 header 时，用该次响应流的
+  起始时间戳，没有流再用这个 step 的 `step/start`。一轮生成跨过 12:00 / 14:00 / 18:00 时，
+  不会按结算时刻把高峰请求算成空闲。同一 Turn/Step 的后一次结算仍沿用这一次的发出时刻。
 - 上下文压缩的 `compaction/summary` 若带了 provider 用量，按该次摘要自己的模型另计，不并进
-  同一 Turn/Step 的替换。
+  同一 Turn/Step 的替换。时刻用 `compaction/start`，没有开始事件时才用摘要落盘的时间。
 - **内置 2026 年法定节假日**：节假日（以及周末）按空闲价计费，不再是简单的「工作日」判断。
 - 不联网、不保存任何数据，金额由会话自身的 provider 上报 token 用量推导。
 
@@ -88,7 +89,7 @@ Web 界面也可以在 **设置 → 插件 → 安装 bundle** 里粘贴同一�
   也恒为 0。
 - 调休补班的周末仍按空闲价。官方高峰是「周一至周五（不含法定节假日）」的两个窗口，不是国务院
   调休之后的工作日。
-- 一段会话里切换过模型时，弹层会分模型列出各自费用，但 token 明细仍按桶汇总。
+- 一段会话里切换过模型或跨过峰谷时，弹层按模型和时段分开列 token 与金额。
 - 会话还没有产生计费用量时，pill 不显示。
 
 ## 开发与测试
@@ -99,8 +100,8 @@ node --test
 ```
 
 `lib/cost.js` 是纯函数计价折叠（不依赖 DSH），`test/cost.test.mjs` 覆盖峰谷边界、节假日、
-请求时间判段、同 Turn/Step 替换、重试、旧模型别名、第三方模型回退与配置覆盖；GitHub Actions
-在每次 push / PR 时运行同样的检查。
+请求时间判段、未结算时钟不串步、压缩开始时刻、同 Turn/Step 替换、重试、旧模型别名、
+第三方模型回退、分时段明细与配置覆盖；GitHub Actions 在每次 push / PR 时运行同样的检查。
 
 ---
 
@@ -110,14 +111,16 @@ A DeepSeek Harness (DSH) Web GUI plugin that shows what the current session has 
 CNY, in the composer dock row — and opens a click-through breakdown dialog.
 
 - Prices every settled assistant attempt with the **official DeepSeek CNY list price for the model
-  and the period that attempt was dispatched in** (peak / off-peak). The clock is the attempt's
-  `request/header` or `llm/retry-started` when one was logged, otherwise the first timestamp in
-  that attempt's stream (later steps reuse the header and do not write another), then `step/start`,
-  and only then the settlement time. The 2026 public-holiday calendar is built in. A
-  `compaction/summary` that carries provider usage is added on its own model and is not folded into
-  the surrounding turn/step.
-- Click the pill for model, uncached input / cache-hit input / cache-write / output tokens with
-  amounts, peak and off-peak subtotals, and the total. Escape or an outside click closes it.
+  and the period that attempt was dispatched in** (peak / off-peak). The clock is that attempt's
+  own `request/header` or `llm/retry-started` when one was logged; a marker that never settled
+  does not price a later step. Otherwise the first timestamp in that attempt's stream is used
+  (later steps reuse the header and do not write another), then that step's `step/start`, and
+  only then the settlement time. The 2026 public-holiday calendar is built in. A
+  `compaction/summary` that carries provider usage is added on its own model, timed from
+  `compaction/start` when that event exists, and is not folded into the surrounding turn/step.
+- Click the pill for a per-model breakdown. Each model lists the peak and off-peak periods it
+  actually ran in, with uncached input / cache-hit input / cache-write / output tokens and
+  amounts. Escape or an outside click closes it.
 - No network requests; figures come from the session's own provider-reported token usage.
 
 ### Install

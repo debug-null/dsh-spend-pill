@@ -141,17 +141,12 @@ test('an unknown model falls back to the flash price and is flagged', () => {
   ]);
   assert.equal(view.cny, 2);
   assert.equal(view.fallback, true);
-  assert.deepEqual(view.models[0], {
-    provider: 'openrouter',
-    model: 'some-third-party-model',
-    cny: 2,
-    tokens: {
-      uncachedInputTokens: 1_000_000,
-      cacheReadTokens: 0,
-      cacheWriteTokens: 0,
-      outputTokens: 0,
-    },
-  });
+  assert.equal(view.models[0].provider, 'openrouter');
+  assert.equal(view.models[0].model, 'some-third-party-model');
+  assert.equal(view.models[0].cny, 2);
+  assert.equal(view.models[0].fallback, true);
+  assert.equal(view.models[0].periods[0].period, 'peak');
+  assert.equal(view.models[0].periods[0].costs.inputCny, 2);
 });
 
 test('legacy Flash ids price as deepseek-flash', () => {
@@ -212,7 +207,7 @@ test('view rounds to six decimals and reports totals only once billed', () => {
 
 test('stateVersion moves when the fold semantics change', () => {
   const version = createProjection().stateVersion;
-  assert.ok(version >= 3 && version < 1_000_003);
+  assert.ok(version >= 4 && version < 1_000_004);
 });
 
 test('a makeup Saturday stays off-peak: official peak is Monday-Friday', () => {
@@ -427,6 +422,155 @@ test('replacing the only fallback attempt clears the fallback flag', () => {
   ]);
   assert.equal(kept.view.fallback, true);
   assert.equal(kept.view.cny, 10);
+});
+
+test('an unsettled header does not price a later step', () => {
+  const projection = createProjection();
+  const { view } = run(projection, [
+    { type: 'step/start', time: TUESDAY(11, 50), data: { turn: 1, step: 1 } },
+    headerEvent(TUESDAY(11, 55)),
+    { type: 'step/start', time: TUESDAY(12, 10), data: { turn: 1, step: 2 } },
+    messageEvent(TUESDAY(12, 20), 1, 2, usage(0, 1_000_000)),
+  ]);
+  assert.equal(view.peakCny, 0);
+  assert.equal(view.offPeakCny, 4);
+});
+
+test('an unsettled retry clock does not price the next step', () => {
+  const projection = createProjection();
+  const { view } = run(projection, [
+    headerEvent(TUESDAY(9, 30)),
+    messageEvent(TUESDAY(9, 40), 1, 1, usage(0, 1_000_000)),
+    { type: 'llm/retry-started', time: TUESDAY(11, 59), data: { turn: 1, step: 1 } },
+    messageEvent(TUESDAY(12, 20), 1, 2, usage(0, 1_000_000)),
+  ]);
+  assert.equal(view.peakCny, 8);
+  assert.equal(view.offPeakCny, 4);
+});
+
+test('a header logged inside the open step still prices that step', () => {
+  const projection = createProjection();
+  const { view } = run(projection, [
+    { type: 'step/start', time: TUESDAY(8, 30), data: { turn: 1, step: 1 } },
+    headerEvent(TUESDAY(9, 5)),
+    messageEvent(TUESDAY(9, 20), 1, 1, usage(0, 1_000_000)),
+  ]);
+  assert.equal(view.peakCny, 8);
+  assert.equal(view.offPeakCny, 0);
+});
+
+test('a finished compaction does not lend its start time to the next summary', () => {
+  const projection = createProjection();
+  const { view } = run(projection, [
+    { type: 'compaction/start', time: TUESDAY(11, 50), data: { turn: 1 } },
+    {
+      type: 'compaction/summary',
+      time: TUESDAY(11, 55),
+      data: { provider: 'deepseek-account', model: 'deepseek-flash', usage: usage(0, 1_000_000) },
+    },
+    { type: 'compaction/end', time: TUESDAY(11, 56), data: { turn: 1 } },
+    {
+      type: 'compaction/summary',
+      time: TUESDAY(12, 20),
+      data: { provider: 'deepseek-account', model: 'deepseek-flash', usage: usage(0, 1_000_000) },
+    },
+  ]);
+  assert.equal(view.peakCny, 8);
+  assert.equal(view.offPeakCny, 4);
+});
+
+test('compaction/start is the summary clock when the call finishes after the boundary', () => {
+  const projection = createProjection();
+  const { view } = run(projection, [
+    {
+      type: 'compaction/start',
+      time: TUESDAY(11, 50),
+      data: { turn: 1 },
+    },
+    {
+      type: 'compaction/summary',
+      time: TUESDAY(12, 20),
+      data: {
+        provider: 'deepseek-account',
+        model: 'deepseek-v4-pro',
+        usage: usage(0, 1_000_000),
+      },
+    },
+  ]);
+  assert.equal(view.peakCny, 27);
+  assert.equal(view.offPeakCny, 0);
+});
+
+test('a few cache-hit tokens stay visible at the off-peak flash rate', () => {
+  const projection = createProjection();
+  const { view } = run(projection, [
+    headerEvent(SATURDAY(10)),
+    messageEvent(SATURDAY(10, 1), 1, 1, usage(0, 0, 10)),
+  ]);
+  assert.equal(view.cny, 0.0000002);
+  assert.equal(view.costs.cacheReadCny, 0.0000002);
+});
+
+test('an internal clock update keeps the published view reference', () => {
+  const projection = createProjection();
+  const billed = run(projection, [
+    headerEvent(TUESDAY(9, 30)),
+    messageEvent(TUESDAY(9, 40), 1, 1, usage(0, 1_000_000)),
+  ]);
+  const next = projection.apply(billed.state, {
+    type: 'step/start',
+    time: TUESDAY(9, 50),
+    data: { turn: 1, step: 2 },
+  });
+  assert.equal(projection.wire.view(billed.state), projection.wire.view(next));
+  assert.equal(projection.wire.view(next).cny, 8);
+});
+
+test('the view splits each model into the periods that were actually billed', () => {
+  const projection = createProjection();
+  const { view } = run(projection, [
+    headerEvent(TUESDAY(9, 30), 'deepseek-flash'),
+    messageEvent(TUESDAY(10), 1, 1, usage(0, 1_000_000)),
+    headerEvent(TUESDAY(12, 30), 'deepseek-flash'),
+    messageEvent(TUESDAY(12, 40), 1, 2, usage(1_000_000, 0, 1_000_000)),
+  ]);
+  assert.equal(view.models.length, 1);
+  assert.equal(view.models[0].fallback, false);
+  assert.deepEqual(
+    view.models[0].periods.map((period) => period.period),
+    ['peak', 'offPeak'],
+  );
+  const peak = view.models[0].periods[0];
+  const offPeak = view.models[0].periods[1];
+  assert.equal(peak.cny, 8);
+  assert.equal(peak.tokens.outputTokens, 1_000_000);
+  assert.equal(peak.costs.outputCny, 8);
+  assert.equal(offPeak.cny, 1.02);
+  assert.equal(offPeak.tokens.uncachedInputTokens, 1_000_000);
+  assert.equal(offPeak.tokens.cacheReadTokens, 1_000_000);
+  assert.equal(offPeak.costs.inputCny, 1);
+  assert.equal(offPeak.costs.cacheReadCny, 0.02);
+});
+
+test('assistant/attempt bills the last stream usage sample', () => {
+  const projection = createProjection();
+  const { view } = run(projection, [
+    headerEvent(TUESDAY(9, 30)),
+    {
+      type: 'assistant/attempt',
+      time: TUESDAY(10),
+      data: {
+        turn: 1,
+        step: 1,
+        usage: usage(0, 9_000_000),
+        stream: [
+          { type: 'chunk', time: TUESDAY(9, 40), chunk: { type: 'usage', usage: usage(0, 1_000_000) } },
+        ],
+      },
+    },
+  ]);
+  assert.equal(view.tokens.outputTokens, 1_000_000);
+  assert.equal(view.cny, 8);
 });
 
 test('events without a turn and step are each billed, and null usage does not wipe', () => {
