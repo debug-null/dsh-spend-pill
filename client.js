@@ -37,6 +37,7 @@ window.__ModuleLoader__.load({
       'cost.note.pricing': '价格来自 DeepSeek 开放平台官方价目（元/百万 tokens），按每次请求发生时段计价。',
       'cost.note.peak': '高峰时段：北京时间工作日 9:00–12:00、14:00–18:00，法定节假日按空闲价；空闲价为高峰价的一半。',
       'cost.note.fallback': '部分模型无内置价格，按 {model} 价格估算。',
+      'cost.model.estimated': '按 {model} 估算',
     };
 
     const en = {
@@ -53,6 +54,7 @@ window.__ModuleLoader__.load({
       'cost.note.pricing': 'Prices follow the official DeepSeek list (CNY per 1M tokens), billed at the period of each request.',
       'cost.note.peak': 'Peak: Beijing time, weekdays 09:00–12:00 and 14:00–18:00, excluding public holidays; off-peak bills at half the peak rate.',
       'cost.note.fallback': 'Models without a built-in price are estimated at the {model} price.',
+      'cost.model.estimated': 'Estimated at the {model} price',
     };
 
     const CSS = [
@@ -72,7 +74,18 @@ window.__ModuleLoader__.load({
       'max-width:min(440px,100vw - 24px);backdrop-filter:var(--dsw-menu-backdrop-filter);',
       '--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);',
       'box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-secondary);',
-      'cursor:default;border:0;padding:16px;font-size:12px;line-height:18px;position:fixed}',
+      'cursor:default;border:0;padding:16px;font-size:12px;line-height:18px;position:fixed;',
+      'max-height:min(480px,calc(100vh - 24px));overflow:auto}',
+      '.dshcost_model{margin-top:12px}',
+      '.dshcost_model:first-child{margin-top:0}',
+      '.dshcost_modelHead{color:var(--dsw-alias-label-primary);justify-content:space-between;',
+      'gap:12px;font-weight:500;display:flex}',
+      '.dshcost_modelName{min-width:0;overflow-wrap:anywhere}',
+      '.dshcost_modelMeta{color:var(--dsw-alias-label-tertiary);margin-top:2px;font-size:11px;',
+      'line-height:16px}',
+      '.dshcost_period{margin-top:8px}',
+      '.dshcost_periodLabel{color:var(--dsw-alias-label-secondary);justify-content:space-between;',
+      'gap:12px;margin-bottom:4px;display:flex}',
       '.dshcost_title{color:var(--dsw-alias-label-primary);justify-content:space-between;',
       'gap:16px;margin-bottom:8px;font-weight:500;display:flex}',
       '.dshcost_titleRule{border-top:.5px solid var(--dsw-alias-border-l2);margin-bottom:10px}',
@@ -93,9 +106,9 @@ window.__ModuleLoader__.load({
       const abs = Math.abs(value);
       let digits =
         forceDigits !== undefined ? forceDigits : abs >= 1 ? 2 : abs >= 0.01 ? 3 : 4;
-      // The fold keeps six decimal places. Four digits render a real
-      // cache-hit total such as ¥0.00004 as 0.0000.
-      while (digits < 6 && abs > 0 && Number(abs.toFixed(digits)) === 0) digits += 1;
+      // The fold keeps eight decimal places. Four digits render a real
+      // cache-hit total such as ¥0.0000002 as 0.0000.
+      while (digits < 8 && abs > 0 && Number(abs.toFixed(digits)) === 0) digits += 1;
       return value.toLocaleString(undefined, {
         minimumFractionDigits: digits,
         maximumFractionDigits: digits,
@@ -179,64 +192,88 @@ window.__ModuleLoader__.load({
       });
     }
 
-    function dialogBody(cost, t) {
+    function tokenRows(t, tokens, costs, keyPrefix) {
       const rows = [];
+      const lines = [
+        ['uncachedInputTokens', 'inputCny', 'cost.row.input', 'input'],
+        ['cacheReadTokens', 'cacheReadCny', 'cost.row.cacheRead', 'cache-read'],
+        ['cacheWriteTokens', 'cacheWriteCny', 'cost.row.cacheWrite', 'cache-write'],
+        ['outputTokens', 'outputCny', 'cost.row.output', 'output'],
+      ];
+      for (const [tokenKey, costKey, label, id] of lines) {
+        if (!(tokens[tokenKey] > 0)) continue;
+        rows.push(
+          detailRow(
+            t(label),
+            tokenDetail(t, tokens[tokenKey], costAmount(costs, costKey)),
+            keyPrefix + '-' + id,
+          ),
+        );
+      }
+      return rows;
+    }
+
+    function fallbackModelName(cost) {
+      return typeof cost.fallbackModel === 'string' && cost.fallbackModel !== ''
+        ? cost.fallbackModel
+        : 'deepseek-flash';
+    }
+
+    /**
+     * One block per model, and inside it one block per period that model
+     * actually ran in. A single blended token row hides which rate applied.
+     */
+    function dialogBody(cost, t) {
       const models = Array.isArray(cost.models) ? cost.models : [];
-      for (const entry of models) {
-        rows.push(
-          detailRow(
-            entry.provider + ' / ' + entry.model,
-            '¥' + formatCny(entry.cny, 4),
-            'model-' + entry.provider + '-' + entry.model,
-          ),
-        );
-      }
-      const tokens = cost.tokens !== null && typeof cost.tokens === 'object' ? cost.tokens : {};
-      if (tokens.uncachedInputTokens > 0) {
-        rows.push(
-          detailRow(
-            t('cost.row.input'),
-            tokenDetail(t, tokens.uncachedInputTokens, costAmount(cost.costs, 'inputCny')),
-            'input',
-          ),
-        );
-      }
-      if (tokens.cacheReadTokens > 0) {
-        rows.push(
-          detailRow(
-            t('cost.row.cacheRead'),
-            tokenDetail(t, tokens.cacheReadTokens, costAmount(cost.costs, 'cacheReadCny')),
-            'cache-read',
-          ),
-        );
-      }
-      if (tokens.cacheWriteTokens > 0) {
-        rows.push(
-          detailRow(
-            t('cost.row.cacheWrite'),
-            tokenDetail(t, tokens.cacheWriteTokens, costAmount(cost.costs, 'cacheWriteCny')),
-            'cache-write',
-          ),
-        );
-      }
-      if (tokens.outputTokens > 0) {
-        rows.push(
-          detailRow(
-            t('cost.row.output'),
-            tokenDetail(t, tokens.outputTokens, costAmount(cost.costs, 'outputCny')),
-            'output',
-          ),
-        );
-      }
-      if (cost.peakCny > 0) {
-        rows.push(detailRow(t('cost.row.peak'), '¥' + formatCny(cost.peakCny, 4), 'peak'));
-      }
-      if (cost.offPeakCny > 0) {
-        rows.push(
-          detailRow(t('cost.row.offPeak'), '¥' + formatCny(cost.offPeakCny, 4), 'off-peak'),
-        );
-      }
-      return h('dl', { className: 'dshcost_details' }, rows);
+      if (models.length === 0) return null;
+      return h(
+        'div',
+        null,
+        models.map((entry) => {
+          const periods = Array.isArray(entry.periods) ? entry.periods : [];
+          const key = entry.provider + '/' + entry.model;
+          return h(
+            'section',
+            { key, className: 'dshcost_model' },
+            h(
+              'div',
+              { className: 'dshcost_modelHead' },
+              h('span', { className: 'dshcost_modelName' }, entry.provider + ' / ' + entry.model),
+              h('span', { className: 'dshcost_titleValue' }, '¥' + formatCny(entry.cny, 4)),
+            ),
+            entry.fallback
+              ? h(
+                  'div',
+                  { className: 'dshcost_modelMeta' },
+                  t('cost.model.estimated', { model: fallbackModelName(cost) }),
+                )
+              : null,
+            periods.map((period) =>
+              h(
+                'div',
+                { key: period.period, className: 'dshcost_period' },
+                h(
+                  'div',
+                  { className: 'dshcost_periodLabel' },
+                  h(
+                    'span',
+                    null,
+                    t(period.period === 'offPeak' ? 'cost.row.offPeak' : 'cost.row.peak'),
+                  ),
+                  periods.length > 1
+                    ? h('span', null, '¥' + formatCny(period.cny, 4))
+                    : null,
+                ),
+                h(
+                  'dl',
+                  { className: 'dshcost_details' },
+                  tokenRows(t, period.tokens ?? {}, period.costs ?? {}, key + '-' + period.period),
+                ),
+              ),
+            ),
+          );
+        }),
+      );
     }
 
     /**
@@ -261,7 +298,16 @@ window.__ModuleLoader__.load({
             cost.cny,
             cost.peakCny,
             cost.offPeakCny,
-            Array.isArray(cost.models) ? cost.models.length : 0,
+            Array.isArray(cost.models)
+              ? cost.models
+                  .map((entry) => {
+                    const periods = Array.isArray(entry.periods)
+                      ? entry.periods.map((period) => period.period + ':' + period.cny).join(',')
+                      : '';
+                    return entry.provider + '/' + entry.model + '/' + periods;
+                  })
+                  .join(';')
+              : '',
             totalTokens,
             cost.fallback ? 1 : 0,
           ].join('|')
@@ -308,9 +354,22 @@ window.__ModuleLoader__.load({
         };
         document.addEventListener('keydown', onKeyDown);
         document.addEventListener('pointerdown', onPointerDown, true);
+        const panel = panelRef.current;
+        const previously = document.activeElement;
+        if (panel !== null && typeof panel.focus === 'function') panel.focus();
         return () => {
           document.removeEventListener('keydown', onKeyDown);
           document.removeEventListener('pointerdown', onPointerDown, true);
+          // Escape leaves focus on the dialog. A click outside already moved
+          // it, and pulling it back would steal the field the user chose.
+          if (
+            previously instanceof HTMLElement &&
+            panel !== null &&
+            document.activeElement === panel &&
+            typeof previously.focus === 'function'
+          ) {
+            previously.focus();
+          }
         };
       }, [open]);
 
@@ -343,6 +402,8 @@ window.__ModuleLoader__.load({
                   ref: panelRef,
                   className: 'dshcost_panel',
                   role: 'dialog',
+                  tabIndex: -1,
+                  'aria-modal': 'true',
                   'aria-label': t('cost.dialog.title'),
                   style: pos === null ? MEASURE_STYLE : pos,
                 },
@@ -369,12 +430,7 @@ window.__ModuleLoader__.load({
                   ? h(
                       'div',
                       { className: 'dshcost_note' },
-                      t('cost.note.fallback', {
-                        model:
-                          typeof cost.fallbackModel === 'string' && cost.fallbackModel !== ''
-                            ? cost.fallbackModel
-                            : 'deepseek-flash',
-                      }),
+                      t('cost.note.fallback', { model: fallbackModelName(cost) }),
                     )
                   : null,
               ),

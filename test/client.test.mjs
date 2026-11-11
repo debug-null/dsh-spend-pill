@@ -35,6 +35,9 @@ test('formatCny keeps a positive sub-0.0001 amount visible', () => {
   assert.match(formatCny(10), /^10[.,]00$/);
   assert.match(formatCny(0.5), /^0[.,]500$/);
   assert.equal(formatCny(Number.NaN), '0.0000');
+  const tiny = formatCny(0.00000002, 4);
+  assert.match(tiny, /2/);
+  assert.doesNotMatch(tiny, /^0[.,]0+$/);
 });
 
 test('placePanel clamps to the viewport and flips below the trigger', () => {
